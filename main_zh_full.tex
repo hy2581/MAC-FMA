@@ -396,7 +396,7 @@ Q_{\tt qjl}^{-1}(\z) := \frac{\sqrt{\pi/2}}{d} \cdot \S^\top \cdot \z ~~~~\text{
 \end{definition}
 
 下一条引理重述了~\cite{qjl} 的结论：QJL 既无偏，也具有较小的内积失真：
-\begin{lemma}[performance guarantee: QJL]\label{lem_qjl}
+\begin{lemma}[性能保证：QJL]\label{lem_qjl}
 设 $Q_{\tt qjl}$ 与 $Q_{\tt qjl}^{-1}$ 如 \cref{def_qjl} 所定义。
 则对任意向量 $\x \in \SS^{d-1}$ 和任意 $\y \in \RR^d$，有：
 \begin{itemize}
@@ -465,9 +465,9 @@ $\left\{ \pm \frac{\sqrt{2/\pi}}{\sqrt{d}} \right\}$ 与 $\left\{ \pm \frac{0.45
 
 
 \begin{algorithm}[t!]
-\caption{$\TurboQuant_{\tt mse}$: optimized for MSE}\label{alg_turboquant_mse}
+\caption{$\TurboQuant_{\tt mse}$：MSE 优化}\label{alg_turboquant_mse}
 \begin{algorithmic}[1]
-    \STATE{\bfseries input:} dimension $d$ and bit-width $b$
+    \STATE{\bfseries 输入：}维度 $d$ 与比特宽度 $b$
 
     {\ttfamily\textcolor{blue}{// Global Parameters for Setting up $\TurboQuant_{\tt mse}$}} \\
     \STATE Generate a {\ttfamily\textcolor{blue}{random rotation matrix}} $\BPi \in \RR^{d \times d}$
@@ -477,18 +477,18 @@ $\left\{ \pm \frac{\sqrt{2/\pi}}{\sqrt{d}} \right\}$ 与 $\left\{ \pm \frac{0.45
    \STATE{\bf Procedure} $\textsc{Quant}_{\tt mse} ( \x )$
    \STATE $\y \gets \BPi \cdot \x$\label{line_y}
    \STATE ${\tt idx}_j \gets \arg\min_{k \in [2^b]}  \abs{\y_j - c_k}$ for every $j \in [d]$\label{line_idx} \hfill \COMMENT{{\ttfamily\textcolor{blue}{ ${\tt idx}_j$'s are $b$-bit integers}}}
-    \STATE {\bf output: }${\tt idx}$
+    \STATE {\bf 输出：}${\tt idx}$
    \\\hrulefill
    \STATE{\bf Procedure} $\textsc{DeQuant}_{\tt mse} ({\tt idx})$
    \STATE $\tilde{\y}_j \gets c_{{\tt idx}_j}$ for every $j \in [d]$\label{y_tilde}
    \STATE $\tilde{\x} \gets \BPi^\top \cdot \tilde{\y}$
-   \STATE {\bf output: }$\tilde{\x}$ 
+   \STATE {\bf 输出：}$\tilde{\x}$ 
 \end{algorithmic}
 \end{algorithm}
 
 
 现在我们给出 $\TurboQuant_{\tt mse}$ 的主要理论保证。
-\begin{theorem}[performance guarantee: $\TurboQuant_{\tt mse}$]\label{thrm_mse}
+\begin{theorem}[性能保证：$\TurboQuant_{\tt mse}$]\label{thrm_mse}
 对于任意 bit-width $b \ge 1$ 与任意向量 $\x \in \SS^{d-1}$，\cref{alg_turboquant_mse} 中的 $\textsc{Quant}_{\tt mse}(\x)$ 会输出索引向量 ${\tt idx} \in [2^b]^d$。
 当将该索引向量输入 $\textsc{DeQuant}_{\tt mse}({\tt idx})$ 时，可得到重建向量 $\tilde{\x} \in \RR^d$，并满足以下失真上界：
 \begin{itemize}
@@ -525,14 +525,14 @@ $\Ccal(f_X, b) \approx \frac{0.36}{d}, \frac{0.117}{d}, \frac{0.03}{d}, \frac{0.
 \end{proof}
 
 
-\paragraph{Entropy Encoding Codebook Pointers.}
-\TurboQuant's efficiency can be further increased by applying entropy encoding to the indices that point to the closest codebook elements. 
-Specifically, the probability of each codeword index appearing in the quantized vectors can be computed as $p_\ell := \int_{\frac{c_{\ell-1} + c_\ell}{2}}^{\frac{c_\ell + c_{\ell+1}}{2}} f_X(x)~dx$.
-Optimally coding the indices, reduces the average bit-width to nearly the entropy of the distribution $\{ p_i \}_{i \in [2^b]}$.
-This lossless compression does not affect the distortion and provides a bit-width reduction at no cost.
-The most significant reduction occurs for $b=4$, where the entropy of $\{ p_i \}_{i \in [2^b]}$ is approximately $3.8$.
-Detailed calculations for optimal prefix codes reveal that the average bit-width can be reduced by $5 \%$.
-However, given the limited gain, we have chosen not to incorporate this technique into \TurboQuant to maintain simplicity and speed.
+\paragraph{码本索引的熵编码。}
+\TurboQuant 的效率还可通过对“最近码字索引”进行熵编码进一步提升。 
+具体而言，量化后各码字索引出现的概率可写为 $p_\ell := \int_{\frac{c_{\ell-1} + c_\ell}{2}}^{\frac{c_\ell + c_{\ell+1}}{2}} f_X(x)~dx$。
+若对索引进行最优编码，则平均比特宽度可接近分布 $\{ p_i \}_{i \in [2^b]}$ 的熵。
+这种无损压缩不会改变失真，并且可以“免费”降低比特开销。
+其中在 $b=4$ 时下降最明显，$\{ p_i \}_{i \in [2^b]}$ 的熵约为 $3.8$。
+基于最优前缀码的精细计算表明，平均比特宽度约可再降低 $5\%$。
+不过考虑到收益有限，本文未将其纳入 \TurboQuant 主流程，以保持算法简洁与速度。
 
 
 
@@ -561,9 +561,9 @@ Q_{\tt prod}(\x) = \left[ Q_{\tt mse}(\x), Q_{\tt qjl}\left( \x - Q_{\tt mse}^{-
 该过程的伪代码见 \cref{alg_turboquant_prod}。
 
 \begin{algorithm}[t!]
-\caption{$\TurboQuant_{\tt prod}$: optimized for inner product}\label{alg_turboquant_prod}
+\caption{$\TurboQuant_{\tt prod}$：内积优化}\label{alg_turboquant_prod}
 \begin{algorithmic}[1]
-    \STATE{\bfseries input:} dimension $d$ and bit-width $b$
+    \STATE{\bfseries 输入：}维度 $d$ 与比特宽度 $b$
 
     {\ttfamily\textcolor{blue}{// Global Parameters for Setting up $\TurboQuant_{\tt prod}$}} \\
     \STATE Instantiate a {\ttfamily\textcolor{blue}{$\TurboQuant_{\tt mse}$}} with bit-width $b-1$ as per \cref{alg_turboquant_mse}\label{turbo_mse}
@@ -574,17 +574,17 @@ Q_{\tt prod}(\x) = \left[ Q_{\tt mse}(\x), Q_{\tt qjl}\left( \x - Q_{\tt mse}^{-
    \STATE ${\tt idx} \gets \textsc{Quant}_{\tt mse}(\x)$
    \STATE $\r \gets \x - \textsc{DeQuant}_{\tt mse}({\tt idx})$ \label{line_residual} \hfill \COMMENT{{\ttfamily\textcolor{blue}{ residual vector}}} 
    \STATE ${\tt qjl} \gets {\tt sign} \left( \S \cdot \r \right)$ \hfill \COMMENT{{\ttfamily\textcolor{blue}{ QJL on residual vector}}}
-   \STATE {\bf output: }$({\tt idx}, {\tt qjl}, \norm{\r}_2)$
+   \STATE {\bf 输出：}$({\tt idx}, {\tt qjl}, \norm{\r}_2)$
    \\\hrulefill
    \STATE{\bf Procedure} $\textsc{DeQuant}_{{\tt prod}} ( {\tt idx}, {\tt qjl}, \gamma )$
    \STATE $\tilde{\x}_{\tt mse} \gets \textsc{DeQuant}_{\tt mse}({\tt idx})$ \label{line_tilde_x}
    \STATE $\tilde{\x}_{\tt qjl} \gets \frac{\sqrt{\pi/2}}{d} \cdot \gamma \cdot \S^\top \cdot {\tt qjl}$ \label{line_tilde_x_qjl}
-   \STATE {\bf output: }$\tilde{\x}_{\tt mse} + \tilde{\x}_{\tt qjl}$ \label{output_tilde_x}
+   \STATE {\bf 输出：}$\tilde{\x}_{\tt mse} + \tilde{\x}_{\tt qjl}$ \label{output_tilde_x}
 \end{algorithmic}
 \end{algorithm}
 
 下面给出 $\TurboQuant_{\tt prod}$ 的主要结论。
-\begin{theorem}[performance guarantee: $\TurboQuant_{\tt prod}$] \label{thrm_prod}
+\begin{theorem}[性能保证：$\TurboQuant_{\tt prod}$] \label{thrm_prod}
 对任意 bit-width $b \ge 1$ 与任意向量 $\x \in \SS^{d-1}$，\cref{alg_turboquant_prod} 中的过程 $\textsc{Quant}_{\tt prod}(\x)$ 会输出索引向量 ${\tt idx} \in [2^{b-1}]^d$、符号向量 ${\tt qjl} \in \{ -1, 1 \}^d$ 以及非负标量 $\gamma \ge 0$。
 将这些量输入到原语 $\textsc{DeQuant}_{\tt prod}({\tt idx}, {\tt qjl}, \gamma)$ 后，可得到重建向量 $\tilde{\x} \in \RR^d$，并且对任意 $\y \in \RR^d$ 满足：
 \begin{itemize}
@@ -638,7 +638,7 @@ $\E_{\tilde{\x}}\left[ \left< \y, \tilde{\x} \right> \right] = \E_{\tilde{\x}_{\
 随后我们对后者利用 \cref{sec:slb} 中的 Shannon 下界（SLB）导出可达失真率下界。
 形式化地，我们证明如下定理。
 
-\begin{theorem}[lower bound on best achievable compression distortion]
+\begin{theorem}[最优可达压缩失真的下界]
 \label{thrm_lower_bound}
 对于任意 bit-width 为 $b$ 的随机量化算法 $Q: \SS^{d-1} \to \{ 0, 1 \}^{b \cdot d}$ 及任意重建映射 $Q^{-1}: \{ 0, 1 \}^{b \cdot d} \to \RR^d$，都存在困难输入 $\x \in \SS^{d-1}$，使得：
 \[
