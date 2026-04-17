@@ -538,27 +538,27 @@ However, given the limited gain, we have chosen not to incorporate this techniqu
 
 
 \subsection{内积最优的 \TurboQuant} \label{sec:prod_turbo_alg}
-For important applications like nearest neighbor search, having an unbiased inner product estimator is essential.
-However, $\TurboQuant_{\tt mse}$ presented in \cref{sec:mse_turbo_alg} does not provide unbiased inner product estimates with query vectors.
-To illustrate this, consider the case with a bit-width of $b=1$.
-In this scenario, the optimal codebooks that solve the optimization problem in \cref{eq:continuous_k_means}, for sufficiently large $d$, are $\left\{ \pm \sqrt{\frac{2}{\pi d}} \right\}$. 
-This implies that the quantization map for $\TurboQuant_{\tt mse}$ is $Q_{\tt mse}(\x) = {\tt sign} \left( \BPi \cdot \x \right)$ for any $\x \in \RR^d$, and the dequantization map is $Q_{\tt mse}^{-1}(\z) = \sqrt{\frac{2}{\pi d}} \cdot \BPi^\top \cdot \z$ for any $\z \in \{ -1, +1\}^d$. 
-Therefore, for large enough $d$, according to \cref{lem_qjl}, we have $\E\left[ \left< \y, Q_{\tt mse}^{-1}\left( Q_{\tt mse}(\x) \right) \right> \right] = \frac{2}{\pi} \cdot \langle \y, \x \rangle$, which has a multiplicative bias of $2/\pi$.
-This bias diminishes with increasing bit-widths $b$, as we empirically demonstrate in \cref{sec:exp_valivation}.
+对于近邻搜索等关键应用，内积估计的无偏性非常重要。
+但 \cref{sec:mse_turbo_alg} 中的 $\TurboQuant_{\tt mse}$ 对查询向量并不保证内积无偏。
+为直观说明这一点，考虑 bit-width 为 $b=1$ 的情形。
+在该情形下，当 $d$ 足够大时，\cref{eq:continuous_k_means} 的最优码本为 $\left\{ \pm \sqrt{\frac{2}{\pi d}} \right\}$。
+这意味着 $\TurboQuant_{\tt mse}$ 的量化映射可写为 $Q_{\tt mse}(\x) = {\tt sign} \left( \BPi \cdot \x \right)$（对任意 $\x \in \RR^d$），对应反量化映射为 $Q_{\tt mse}^{-1}(\z) = \sqrt{\frac{2}{\pi d}} \cdot \BPi^\top \cdot \z$（对任意 $\z \in \{ -1, +1\}^d$）。
+因此，当 $d$ 足够大时，由 \cref{lem_qjl} 可得 $\E\left[ \left< \y, Q_{\tt mse}^{-1}\left( Q_{\tt mse}(\x) \right) \right> \right] = \frac{2}{\pi} \cdot \langle \y, \x \rangle$，即存在 $2/\pi$ 的乘性偏差。
+如 \cref{sec:exp_valivation} 的实验所示，该偏差会随 bit-width $b$ 增加而减弱。
 
 
-To address this bias, we propose a solution that combines $\TurboQuant_{\tt mse}$ with an instance of QJL~\cite{qjl}.
-Specifically, let $Q_{\tt mse}$ be the quantization map corresponding to $\TurboQuant_{\tt mse}$ with a bit-width of $b-1$. 
-For any $\x \in \SS^{d-1}$ the residual vector, defined as $\r := \x - Q_{\tt mse}^{-1}\left( Q_{\tt mse}(\x) \right)$, has a small L2 norm, i.e., on expectation $\E[\norm{\r}] = \sqrt{\Ccal(f_X, b-1)}$ (per \cref{eq:continuous_k_means}).
-We can then apply the QJL quantization map $Q_{\tt qjl}$ on this residual vector, resulting in an overall bit-width of $b$ and providing the following unbiased inner product estimator:
+为消除这一偏差，我们提出将 $\TurboQuant_{\tt mse}$ 与 QJL~\cite{qjl} 结合的方案。
+具体地，令 $Q_{\tt mse}$ 表示 bit-width 为 $b-1$ 的 $\TurboQuant_{\tt mse}$ 量化映射。
+对任意 $\x \in \SS^{d-1}$，定义残差 $\r := \x - Q_{\tt mse}^{-1}\left( Q_{\tt mse}(\x) \right)$。该残差的 L2 范数较小，即期望上有 $\E[\norm{\r}] = \sqrt{\Ccal(f_X, b-1)}$（见 \cref{eq:continuous_k_means}）。
+随后对残差应用 QJL 量化映射 $Q_{\tt qjl}$，即可在总 bit-width 为 $b$ 的预算下得到如下无偏内积估计器：
 \[
 \left< \y, Q_{\tt mse}^{-1}\left( Q_{\tt mse}(\x) \right) \right> + \norm{\r}_2 \cdot \left< \y, Q_{\tt qjl}^{-1}\left( Q_{\tt qjl}(\r) \right) \right>.
 \]
-More formally, the quantization map $Q_{\tt prod}: \SS^{d-1} \to [2^{b-1}]^d \times \{ -1, 1 \}^d \times \RR$ is defined as:
+更形式化地，量化映射 $Q_{\tt prod}: \SS^{d-1} \to [2^{b-1}]^d \times \{ -1, 1 \}^d \times \RR$ 定义为：
 \[
 Q_{\tt prod}(\x) = \left[ Q_{\tt mse}(\x), Q_{\tt qjl}\left( \x - Q_{\tt mse}^{-1}\left( Q_{\tt mse}(\x) \right) \right), \norm{\x - Q_{\tt mse}^{-1}\left( Q_{\tt mse}(\x) \right)}_2 \right].
 \]
-A pseudocode for this procedure is given in \cref{alg_turboquant_prod}.
+该过程的伪代码见 \cref{alg_turboquant_prod}。
 
 \begin{algorithm}[t!]
 \caption{$\TurboQuant_{\tt prod}$: optimized for inner product}\label{alg_turboquant_prod}
@@ -583,89 +583,93 @@ A pseudocode for this procedure is given in \cref{alg_turboquant_prod}.
 \end{algorithmic}
 \end{algorithm}
 
-We prove the main result for $\TurboQuant_{\tt prod}$ in the following theorem.
+下面给出 $\TurboQuant_{\tt prod}$ 的主要结论。
 \begin{theorem}[performance guarantee: $\TurboQuant_{\tt prod}$] \label{thrm_prod}
-For any bit-width $b \ge 1$ and any vector $\x \in \SS^{d-1}$, the procedure $\textsc{Quant}_{\tt prod}(\x)$ in \cref{alg_turboquant_prod} outputs an index vector ${\tt idx} \in [2^{b-1}]^d$ along with a sign vector ${\tt qjl} \in \{ -1, 1 \}^d$ and a positive number $\gamma \ge 0$. 
-When these vectors and the scalar value are passed to the primitive $\textsc{DeQuant}_{\tt prod}({\tt idx}, {\tt qjl}, \gamma)$, it produces a reconstructed vector $\tilde{\x} \in \RR^d$ that for any vector $\y \in \RR^d$ satisfies the following properties:
+对任意 bit-width $b \ge 1$ 与任意向量 $\x \in \SS^{d-1}$，\cref{alg_turboquant_prod} 中的过程 $\textsc{Quant}_{\tt prod}(\x)$ 会输出索引向量 ${\tt idx} \in [2^{b-1}]^d$、符号向量 ${\tt qjl} \in \{ -1, 1 \}^d$ 以及非负标量 $\gamma \ge 0$。
+将这些量输入到原语 $\textsc{DeQuant}_{\tt prod}({\tt idx}, {\tt qjl}, \gamma)$ 后，可得到重建向量 $\tilde{\x} \in \RR^d$，并且对任意 $\y \in \RR^d$ 满足：
 \begin{itemize}
-    \item Expected inner-product $\E_{\tilde{\x}}\left[ \left< \y, \tilde{\x} \right> \right] = \langle \y, \x \rangle$
-    \item Inner-product distortion defined as $D_{\tt prod} := \E_{\tilde{\x}}\left[\left| \langle \y, \x \rangle - \langle \y, \tilde{\x} \rangle \right|^2 \right]$ is bounded by $D_{\tt prod} \le \frac{\sqrt{3} \pi^2 \cdot \norm{\y}_2^2}{d} \cdot \frac{1}{4^{b}}$ for any $b \ge 0$.
-    \item For small bit-widths, specifically $b = 1, 2, 3, 4$, $D_{\tt prod}$ exhibits finer-grained distortion values: $D_{\tt prod} \approx \frac{\bf 1.57}{d}, \frac{\bf 0.56}{d}, \frac{\bf 0.18}{d}, \frac{\bf 0.047}{d}$, respectively.
+    \item 内积期望无偏：$\E_{\tilde{\x}}\left[ \left< \y, \tilde{\x} \right> \right] = \langle \y, \x \rangle$
+    \item 定义内积失真 $D_{\tt prod} := \E_{\tilde{\x}}\left[\left| \langle \y, \x \rangle - \langle \y, \tilde{\x} \rangle \right|^2 \right]$，则对任意 $b \ge 0$ 有
+    $D_{\tt prod} \le \frac{\sqrt{3} \pi^2 \cdot \norm{\y}_2^2}{d} \cdot \frac{1}{4^{b}}$。
+    \item 对低 bit-width（$b = 1, 2, 3, 4$），可得到更细粒度的数值界：
+    $D_{\tt prod} \approx \frac{\bf 1.57}{d}, \frac{\bf 0.56}{d}, \frac{\bf 0.18}{d}, \frac{\bf 0.047}{d}$。
 \end{itemize}
 \end{theorem}
 \begin{proof}
 % Throughout the proof let $Q_{\tt mse}$ denote the $\textsc{TurboQuant}_{\tt mse}$ which is instantiated in line~\ref{turbo_mse} of \cref{alg_turboquant_prod} and $\S$ is the random matrix defined in line~\ref{random_s}.
-First we compute the conditional expectation of the inner product estimate $\langle \y, \tilde{\x} \rangle$ conditioned on $\tilde{\x}_{\tt mse}$ as follows:
+我们先计算在给定 $\tilde{\x}_{\tt mse}$ 条件下，内积估计 $\langle \y, \tilde{\x} \rangle$ 的条件期望：
 \begin{align*}
     \E \left[ \langle \y, \tilde{\x} \rangle | \tilde{\x}_{\tt mse} \right] &= \E_{\tilde{\x}_{\tt qjl}} \left[ \langle \y, \tilde{\x}_{\tt mse} + \tilde{\x}_{\tt qjl} \rangle | \tilde{\x}_{\tt mse} \right]\\
     &= \langle \y, \tilde{\x}_{\tt mse} \rangle + \E_{\tilde{\x}_{\tt qjl}} \left[ \langle \y, \tilde{\x}_{\tt qjl} \rangle | \tilde{\x}_{\tt mse} \right] \\
     &= \langle \y, \tilde{\x}_{\tt mse} \rangle + \langle \y , \r \rangle\\
     &= \langle \y , \x \rangle,
 \end{align*}
-where the first equality follows from the definition of $\tilde{\x}$ in line~\ref{output_tilde_x} of the algorithm.
-The third equality above follows from \cref{lem_qjl} and last line follows from definition of the residual vector $\r = \x - \tilde{\x}_{\tt mse}$ in line~\ref{line_residual}.
-Now we can computed the unconditional expectation using the law of total expectation:
-$\E_{\tilde{\x}}\left[ \left< \y, \tilde{\x} \right> \right] = \E_{\tilde{\x}_{\tt mse}} \left[\E \left[ \langle \y, \tilde{\x} \rangle | \tilde{\x}_{\tt mse} \right] \right] = \E[\langle \y , \x \rangle] = \langle \y , \x \rangle$, which proves the first claim of the theorem.
+其中第一步来自算法第~\ref{output_tilde_x} 行对 $\tilde{\x}$ 的定义；
+第三步由 \cref{lem_qjl} 得到；最后一步来自残差定义 $\r = \x - \tilde{\x}_{\tt mse}$（见第~\ref{line_residual} 行）。
+再由全期望公式可得无条件期望：
+$\E_{\tilde{\x}}\left[ \left< \y, \tilde{\x} \right> \right] = \E_{\tilde{\x}_{\tt mse}} \left[\E \left[ \langle \y, \tilde{\x} \rangle | \tilde{\x}_{\tt mse} \right] \right] = \E[\langle \y , \x \rangle] = \langle \y , \x \rangle$，从而证明定理第一条结论。
 
-We apply the same conditioning on $\tilde{\x}_{\tt mse}$, when computing the distortion, and then compute the resulting conditional distortion:
+接着在计算失真时同样对 $\tilde{\x}_{\tt mse}$ 条件化，得到条件失真：
 \begin{align*}
     \E\left[\left. \left| \langle \y, \x \rangle - \langle \y, \tilde{\x} \rangle \right|^2 \right| \tilde{\x}_{\tt mse} \right] &= \E_{\tilde{\x}_{\tt qjl}}\left[\left. \left| \langle \y, \x \rangle - \langle \y, \tilde{\x}_{\tt mse} + \tilde{\x}_{\tt qjl} \rangle \right|^2 \right| \tilde{\x}_{\tt mse} \right] \\
     &= \E_{\tilde{\x}_{\tt qjl}}\left[\left. \left| \langle \y, \r \rangle - \langle \y, \tilde{\x}_{\tt qjl} \rangle \right|^2 \right| \tilde{\x}_{\tt mse} \right] \\
     &= \mathtt{Var} \left( \left. \langle \y, \tilde{\x}_{\tt qjl} \rangle \right| \tilde{\x}_{\tt mse} \right) \\
     &\le \frac{\pi}{2d} \cdot \norm{\r}_2^2 \norm{\y}_2^2,
 \end{align*}
-where the second equality above follows from the definitions of $\r$ and $\tilde{\x}_{\tt mse}$ in lines~\ref{line_residual} and \ref{line_tilde_x} of \cref{alg_turboquant_prod}.
-The third line above follows because $\E[\langle \y, \tilde{\x}_{\tt qjl} \rangle] = \langle \y, \r \rangle$, by \cref{lem_qjl}. 
-The last line follows from the variance bound of QJL estimator shown in \cref{lem_qjl} and using the fact that $\tilde{\x}_{\tt qjl}$ in line~\ref{line_tilde_x_qjl} is re-scaled by $\gamma = \norm{\r}$.
+其中第二步来自 \cref{alg_turboquant_prod} 第~\ref{line_residual} 与第~\ref{line_tilde_x} 行对 $\r$ 和 $\tilde{\x}_{\tt mse}$ 的定义；
+第三步使用了 \cref{lem_qjl} 给出的 $\E[\langle \y, \tilde{\x}_{\tt qjl} \rangle] = \langle \y, \r \rangle$；
+最后一步使用 \cref{lem_qjl} 的方差上界，并结合第~\ref{line_tilde_x_qjl} 行中 $\tilde{\x}_{\tt qjl}$ 按 $\gamma=\norm{\r}$ 进行重缩放这一事实。
 
-Now by law of total expectation along with the fact that $\r = \x - \tilde{\x}_{\tt mse}$ we can bound the inner product distortion as follows:
+最后由全期望公式并利用 $\r = \x - \tilde{\x}_{\tt mse}$，可得内积失真上界：
 \begin{align*}
     D_{\tt prod} &= \E_{\tilde{\x}_{\tt mse}} \left[ \E\left[\left. \left| \langle \y, \x \rangle - \langle \y, \tilde{\x} \rangle \right|^2 \right| \tilde{\x}_{\tt mse} \right] \right]\\
     &\le \frac{\pi}{2 d} \cdot \norm{\y}_2^2 \cdot \E[\norm{\x - \tilde{\x}_{\tt mse}}_2^2]\\
     &= \frac{\pi}{2 d} \cdot \norm{\y}_2^2 \cdot D_{\tt mse}.
 \end{align*}
-The theorem follows by invoking the MSE bounds from \cref{thrm_mse} with bit-width $b-1$.
+再调用 \cref{thrm_mse} 在 bit-width $b-1$ 下的 MSE 界，即得本定理结论。
 \end{proof}
 
 \subsection{下界}
 \label{sec:lower_bound}
 
-We show that \TurboQuant achieves an optimal distortion rate, up to a small constant factor, for any bit-width by proving lower bounds on the best achievable distortion for any compression algorithm. 
-Our lower bound proof leverages Yao's minimax principle. 
-This principle allows us to relate the lower bound for randomized algorithms with worst-case deterministic input vectors to the lower bound for deterministic algorithms with randomized input vectors. 
-Subsequently, we derive a lower bound on the achievable distortion rate for the latter using Shannon's lower bound (SLB) presented in \cref{sec:slb}.
-Formally, we prove the following theorem.
+我们通过证明任意压缩算法可达到失真的下界，说明 \TurboQuant 在任意 bit-width 下都实现了“仅差小常数因子”的最优失真率。
+下界证明依赖 Yao 极小极大原理。
+该原理将“随机算法 + 最坏确定性输入”的下界，转化为“确定性算法 + 随机输入分布”的下界。
+随后我们对后者利用 \cref{sec:slb} 中的 Shannon 下界（SLB）导出可达失真率下界。
+形式化地，我们证明如下定理。
 
 \begin{theorem}[lower bound on best achievable compression distortion]
 \label{thrm_lower_bound}
-For any randomized quantization algorithm $Q: \SS^{d-1} \to \{ 0, 1 \}^{b \cdot d}$ with bit-width $b$ and any reconstruction map $Q^{-1}: \{ 0, 1 \}^{b \cdot d} \to \RR^d$, there exist a hard input instance $\x \in \SS^{d-1}$ such that:
+对于任意 bit-width 为 $b$ 的随机量化算法 $Q: \SS^{d-1} \to \{ 0, 1 \}^{b \cdot d}$ 及任意重建映射 $Q^{-1}: \{ 0, 1 \}^{b \cdot d} \to \RR^d$，都存在困难输入 $\x \in \SS^{d-1}$，使得：
 \[
 D_{\tt mse}(Q) := \E\left[\left\| \x - Q^{-1}\left( Q(\x) \right) \right\|_2^2 \right] \ge \frac{1}{4^{b}}.
 \]
-Furthermore, there exists a $\y \in \SS^{d-1}$ such that:
+并且存在 $\y \in \SS^{d-1}$，使得：
 \[
 D_{\tt prod}(Q) = \E\left[\left| \langle \y, \x \rangle - \langle \y, Q^{-1}\left( Q(\x) \right) \rangle \right|^2 \right] \ge \frac{1}{d} \cdot \frac{1}{4^{b}}
 \]
 \end{theorem}
 \begin{proof}
-By Yao's minimax principle the expected MSE of the optimal randomized compression algorithm for worst-case inputs ($D_{\tt mse}$) is equal to the expected MSE of the optimal deterministic compression algorithm when applied to inputs drawn from a maximally difficult randomized distribution. 
-By definition, the MSE of the latter scenario is lower-bounded by the best achievable MSE for inputs uniformly distributed on the unit hypersphere.
+由 Yao 极小极大原理可知：最坏输入下最优随机压缩算法的期望 MSE（即 $D_{\tt mse}$），等于某个最困难随机分布下最优确定性压缩算法的期望 MSE。
+按定义，后者又不小于“输入服从单位超球面均匀分布时”可达到的最优 MSE。
 
-The best achievable MSE for a compression algorithm with bit-width $b$, operating on uniformly distributed inputs from the sphere $\SS^{d-1}$, is lower bounded in \cref{lem_slb_random_sphere}.
-Therefore, by invoking \cref{lem_slb_random_sphere} we conclude that $D_{\tt mse} \ge \frac{1}{4^b}$.
+而 bit-width 为 $b$ 的压缩算法在该均匀球面输入下的最优可达 MSE，下界由 \cref{lem_slb_random_sphere} 给出。
+因此可得 $D_{\tt mse} \ge \frac{1}{4^b}$。
 
-Furthermore, from $D_{\tt mse} \ge \frac{1}{4^b}$ and using the definition of $D_{\tt mse}$ we conclude that:
+进一步，由 $D_{\tt mse} \ge \frac{1}{4^b}$ 及 $D_{\tt mse}$ 的定义可得：
 \begin{align*}
     D_{\tt mse} &= \sum_{j=1}^d \E \left[\left| \x_j - \left[ Q^{-1}\left( Q(\x) \right) \right]_j \right|^2 \right]\\
     &= \sum_{j=1}^d \E \left[\left| \langle \e_j, \x \rangle - \langle \e_j, Q^{-1}\left( Q(\x) \right) \rangle \right|^2 \right]\\
     &\ge \frac{1}{4^b}.
 \end{align*}
-By pigeonhole principle there exist an index $j \in [d]$ such that $\E \left[\left| \langle \e_j, \x \rangle - \langle \e_j, Q^{-1}\left( Q(\x) \right) \rangle \right|^2 \right] \ge \frac{1}{d} \cdot \frac{1}{4^b}$, which completes the proof.
+由抽屉原理，必存在某个 $j \in [d]$ 使得
+$\E \left[\left| \langle \e_j, \x \rangle - \langle \e_j, Q^{-1}\left( Q(\x) \right) \rangle \right|^2 \right] \ge \frac{1}{d} \cdot \frac{1}{4^b}$，
+证明完成。
 \end{proof}
 
-We note that a comparable lower bound for the \emph{worst-case} distortion in vector quantization can be derived using ``sphere packing'' arguments (indeed, with larger constants as this is a harder problem)~\cite{gersho1982structure}.
-However, \cref{thrm_lower_bound} offers a more robust and relevant lower bound for our analysis. 
-This is because it establishes a lower bound on the \emph{expected distortion}, rather than the worst-case error, and aligns seamlessly with our upper bounds presented in \cref{thrm_mse} and \cref{thrm_prod}.
+我们补充说明：对向量量化的\emph{最坏情形}失真，也可通过“球填充（sphere packing）”论证得到可比较下界（且常数通常更大，因为该问题更困难）~\cite{gersho1982structure}。
+但对本文分析而言，\cref{thrm_lower_bound} 更稳健也更贴切。
+原因在于它给出的是\emph{期望失真}下界而非最坏误差下界，并与 \cref{thrm_mse} 和 \cref{thrm_prod} 的上界形式严格对齐。
 
 
 
