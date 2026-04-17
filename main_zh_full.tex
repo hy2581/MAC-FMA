@@ -135,120 +135,119 @@ citecolor=lightblue]{hyperref}
 \section{引言}
 \label{intro}
 
-Vector quantization (VQ) in Euclidean space is crucial for efficiently handling high-dimensional vectors across a spectrum of computational domains, from training and deploying large-scale AI and deep learning models to powering vector databases for search/retrieval systems. 
-The core objective is to compress high dimensional vectors by quantizing them--converting floating-point coordinate values to low-bitwidth integers--while minimizing distortion, quantified by metrics such as mean-squared error (MSE) or inner product errors.
-By preserving these properties, inner product queries can be answered rapidly, with minimal latency, and using reduced computational and communication resources.
+欧氏空间中的向量量化（Vector Quantization, VQ）是高效处理高维向量的关键技术，广泛应用于从大规模 AI/深度学习模型训练与部署到检索系统向量数据库等多个计算场景。 
+其核心目标是在将高维向量压缩（即把浮点坐标量化为低比特整数）时，尽可能降低失真；常见度量包括均方误差（MSE）与内积误差。
+在尽量保持这些几何性质后，系统就能以更低延迟、更少计算和通信开销完成内积查询。
 
-This problem's roots trace back to Shannon’s seminal work on Source Coding theory~\cite{shannon1948mathematical, shannon1959coding}, which established that the least distortion achievable by block source codes, now known as vector quantizers, is defined by the Shannon distortion-rate function, determined by the statistical properties of the source and the chosen distortion measure, such as MSE. 
-Today, VQ plays a critical role in fundamental computational domains, including AI, deep learning, and search systems.
-
-
-A key application of VQ is in the deployment of AI models, including large language models (LLMs)~\cite{achiam2023gpt, dubey2024llama, claude, team2024gemini}. 
-As LLM capabilities depend heavily on their model size and context length~\cite{kaplan2020scaling}, serving them requires substantial memory demands and increased inference latency. 
-This latency is primarily attributed to communication bottlenecks between HBM and SRAM on accelerators, or across distributed clusters. 
-By compressing or quantizing model weights and activations, we can effectively mitigate these bottlenecks, resulting in significant reductions in inference costs. 
-Inner product operations between activations and weights is at the core of deep learning models. 
-Thus, model quantization schemes strive to compress weights and/or activation vectors while accurately preserving these inner products.
+这一问题可追溯至 Shannon 在源编码理论中的奠基性工作~\cite{shannon1948mathematical, shannon1959coding}。该理论指出：块编码（即向量量化器）可达到的最小失真由 Shannon 失真率函数决定，而该函数由数据源统计特性和失真度量（如 MSE）共同决定。 
+如今，VQ 已成为 AI、深度学习与搜索系统中的基础能力之一。
 
 
-Decoder based transformer models~\cite{vaswani2017attention} present another compelling use case.
-These models must store key/value (KV) embeddings from previously generated tokens in the KV cache, the size of which scales with both model size (number of layers and attention heads) and context length. 
-This scaling is a significant bottleneck in terms of memory usage and computational speed, especially for long context models. 
-Therefore, reducing the KV cache size without compromising accuracy is essential.
-In this context, the preservation of the Euclidean structure of these embedding vectors--their inner products and distances--is crucial for maintaining model performance. 
-VQ emerges as the most suitable framework for addressing this challenge, offering a robust approach to compressing high-dimensional embeddings while preserving their essential geometric properties.
+VQ 的一个关键应用是 AI 模型部署，尤其是大语言模型（LLM）~\cite{achiam2023gpt, dubey2024llama, claude, team2024gemini}。 
+LLM 能力高度依赖模型规模和上下文长度~\cite{kaplan2020scaling}，因此服务侧往往面临高内存占用与更高推理时延。 
+这类时延主要来自加速器上 HBM 与 SRAM 之间，或分布式集群节点之间的通信瓶颈。 
+通过对权重和激活进行压缩/量化，可以有效缓解这些瓶颈并显著降低推理成本。 
+而激活与权重之间的内积运算正是深度学习模型的核心，因此量化方案必须在压缩的同时尽量保真地保留内积。 
 
 
-Additionally, nearest neighbor (NN) search in high-dimensional spaces with inner product or cosine similarity~\cite{elasticsearch, guo2020accelerating} is a cornerstone of vector databases~\cite{pinecone, gdrant, pgvector}.
-These databases are fundamental for retrieval-augmented generation~\cite{gao2023retrieval, edge2024local} and information retrieval~\cite{khattab2020colbert, santhanam2021colbertv2}. 
-VQ, a.k.a. product quantization (PQ), plays a critical role in these applications. 
-It enables efficient compression of database vectors, optimizes memory usage, and facilitates low-latency, accurate estimations of inner products with query vectors, thereby enabling fast and precise nearest neighbor searches.
+基于解码器的 Transformer 模型~\cite{vaswani2017attention}也提供了另一个关键应用场景。
+在生成过程中，模型需要在 KV cache 中保存历史 token 的 key/value 向量；其规模会随模型大小（层数、头数）与上下文长度同步增长。 
+这种增长会在显存占用和计算速度上形成明显瓶颈，尤其在长上下文场景下更为突出。 
+因此，如何在不显著牺牲精度的前提下压缩 KV cache 非常关键。
+在该任务中，保持嵌入向量的欧氏结构（尤其是内积与距离）对模型性能至关重要。 
+VQ 因而成为解决这一挑战的自然框架：它能够压缩高维嵌入，同时保留其关键几何性质。
 
-Existing VQ algorithms present a trade-off: either they lack accelerator (vectorization) compatibility and exhibit slow computation, making them unsuitable for real-time AI applications like KV cache quantization, or they suffer from suboptimal distortion bounds relative to bit-width.
-Our objective is to introduce an algorithm that addresses these limitations.
-Specifically, we design \TurboQuant: a lightweight, capable of online application (crucial for scenarios like KV cache quantization), and highly accelerator-friendly—a critical attribute for modern AI workloads. 
 
-The core of \TurboQuant is a two-stage process. 
-First, we develop a vector quantizer with optimal distortion rate in terms of mean-squared error (MSE). 
-Subsequently, we apply a 1-bit quantizer to the residual, resulting in an unbiased and low-distortion inner product quantizer. 
-We demonstrate that quantizers optimized for MSE do not produce unbiased estimators for inner products, and our two-stage solution effectively bridges this gap.
-Our MSE-optimal quantizer starts by randomly rotating $d$-dimensional input vectors. 
-Observing the key fact that each coordinate in the rotated vectors follows a Beta distribution, we design optimal Lloyd-Max quantizer~\cite{lloyd1982least, max1960quantizing} for each coordinate by solving a continuous k-means problem.
-This method gives optimal MSE distortion bound and minimizes the L2 norm of the residual.
-To obtain an unbiased and low-distortion quantizer for inner products, we compose our quantizer with the recently developed Quantized Johnson-Lindenstrauss (QJL) transform~\cite{qjl}, which quantizes each coordinate of the residual vector to a single bit.
-Our algorithm offers provably optimal distortion bounds for both MSE and inner products, achieving an exponential improvement over existing methods in terms of bit-width dependence.
+此外，在高维空间下基于内积或余弦相似度的近邻搜索（NN）~\cite{elasticsearch, guo2020accelerating}是向量数据库的核心能力~\cite{pinecone, gdrant, pgvector}。
+这类数据库也是 RAG~\cite{gao2023retrieval, edge2024local}和信息检索~\cite{khattab2020colbert, santhanam2021colbertv2}的重要基础设施。 
+VQ（在 NN 文献中常称为 Product Quantization, PQ）在这里同样扮演关键角色。 
+它可高效压缩库向量、降低内存压力，并支持对查询向量内积的低延迟近似计算，从而实现快速且准确的近邻检索。
+
+现有 VQ 方法通常存在取舍：要么与加速器向量化不兼容、计算较慢，不适用于 KV cache 量化等实时 AI 场景；要么在比特宽度维度上的失真界不够理想。
+本文目标是提出同时克服这些问题的算法。
+我们提出 \TurboQuant：其特点是轻量、支持在线应用（对 KV cache 场景尤为关键）、并且高度加速器友好，适配现代 AI 工作负载。 
+
+\TurboQuant 的核心是两阶段设计。 
+第一阶段，我们构造在 MSE 意义下具有最优失真率的向量量化器； 
+第二阶段，我们对残差施加 1-bit 量化，得到无偏且低失真的内积量化器。 
+我们证明仅针对 MSE 优化的量化器并不能保证内积估计无偏，而两阶段方案可以有效弥补这一差距。
+在 MSE 量化器中，我们先对 $d$ 维输入向量进行随机旋转。 
+利用旋转后各坐标服从 Beta 分布这一关键事实，我们通过求解连续 k-means 问题，为每个坐标构造最优的 Lloyd-Max 量化器~\cite{lloyd1982least, max1960quantizing}。
+该方法同时给出最优的 MSE 失真界，并最小化残差的 L2 范数。
+为实现无偏且低失真的内积量化，我们再将其与近期提出的 Quantized Johnson-Lindenstrauss（QJL）变换~\cite{qjl}组合，对残差向量各坐标做单比特量化。
+最终，本文算法在 MSE 与内积两个指标上都可证明达到近最优失真界，并且在比特宽度依赖上相较已有方法实现了指数级改进。
 
 
 \subsection{问题定义}
 
-Formally, our goal is to design a quantization map, denoted as $Q: \RR^d \to \{ 0, 1 \}^B$, that transforms $d$-dimensional vectors to a binary string of $B$ bits.
-If we set $B = b \cdot d$ for some $b \ge 0$, this quantizer will have a bit-width of $b$, representing the average number of bits used to encode each real-valued coordinate of $\RR^d$.
-Crucially, we require an inverse map, $Q^{-1}: \{ 0, 1 \}^B \to \RR^d$ that performs dequantization, approximately reconstructing original vectors from their quantized representations.
-Of course, this transformation is inherently lossy, as $Q$ is not a bijection. 
-So, our primary objective is to minimize distortion, with a specific focus on mean-squared error (MSE) and inner product distortion. 
+形式化地，我们的目标是设计量化映射 $Q: \RR^d \to \{ 0, 1 \}^B$，将 $d$ 维向量编码为长度为 $B$ 的二进制串。
+若令 $B = b \cdot d$（其中 $b \ge 0$），则该量化器的比特宽度为 $b$，即每个实值坐标的平均编码比特数。
+同时我们需要逆映射（反量化映射）$Q^{-1}: \{ 0, 1 \}^B \to \RR^d$，用于从量化表示近似重建原向量。
+由于 $Q$ 非双射，这一过程天然有损。 
+因此，本文的核心目标是最小化失真，重点关注均方误差（MSE）和内积失真。 
 
 
-We make no assumptions about the input vector dataset, considering the worst-case scenario. 
-We let the quantizer $Q(\cdot)$ to be randomized, leading to stochastic outputs.
-Considering randomized quantizers, it is more appropriate to define the expected distortion over the randomness of the quantizer's output. 
-Thus, we aim to design quantizers that for any desired bit-width $b$ minimize the following expected distortion measures for any (worst-case) vectors $\x, \y \in \RR^d$:
+我们不对输入向量分布作额外假设，而是采用最坏情形分析。 
+并且允许量化器 $Q(\cdot)$ 是随机化的，从而输出具有随机性。
+在随机量化器设定下，更合理的度量是对量化随机性取期望后的失真。 
+因此，对于任意目标比特宽度 $b$，我们希望对任意（最坏情形）向量 $\x,\y\in\RR^d$ 最小化以下期望失真：
 \begin{align}
     \textbf{(MSE)}~~~~~ & D_{\tt mse} := \E_{Q}\left[\left\| \x - Q^{-1}\left( Q(\x) \right) \right\|_2^2 \right] \label{eq:mse}\\
     \textbf{(inner-prod error)}~~~~~ & D_{\tt prod} := \E_{Q}\left[\left| \langle \y, \x \rangle - \langle \y, Q^{-1}\left( Q(\x) \right) \rangle \right|^2 \right]. \label{eq:prod_error}
 \end{align}
-The expectations above are takes with respect to the randomness of the quantizer $Q(\cdot)$.
-Furthermore, for inner-product quantizers, we require unbiasedness of the inner product estimator, a desirable property for numerous applications.
-More precisely, we require:
+上述期望均对量化器 $Q(\cdot)$ 的随机性求取。
+此外，对内积量化器我们还要求内积估计无偏，这是许多应用中的关键性质。
+更具体地，需要满足：
 \begin{align*}
     \textbf{(unbiased inner-prod)}~~~~~ &\E_{Q}\left[ \langle \y, Q^{-1}\left( Q(\x) \right) \rangle\right] = \langle \y, \x \rangle.
 \end{align*}
 
 
-We aim to design computationally efficient quantizers $Q_{\tt mse}$ and $Q_{\tt prod}$, that achieve optimal bounds for the distortion measures defined above, for any given bit-width $b$. 
-Additionally, we aim for $Q_{\tt prod}$ to provide unbiased inner product estimates. 
-In particular, assume that we are given $n$ real-valued vectors $x_1, x_2, \ldots x_n \in \RR^d$. We design the following primitives:
+我们的目标是设计计算高效的量化器 $Q_{\tt mse}$ 与 $Q_{\tt prod}$，使其在任意给定比特宽度 $b$ 下尽可能达到上述失真的最优界。 
+其中，我们特别要求 $Q_{\tt prod}$ 给出无偏内积估计。 
+更具体地，给定 $n$ 个实值向量 $x_1, x_2, \ldots x_n \in \RR^d$，我们设计如下基础算子：
 \begin{itemize}
-    \item \textsc{Quant}: efficiently quantizes the dataset and computes $Q(\x_1), Q(\x_2), \ldots Q(\x_n)$. 
-    \item \textsc{DeQuant}: given a quantized dataset, can efficiently reconstruct original vectors by computing $Q^{-1}\left( Q(\x_i) \right)$ for any $i \in [n]$.
+    \item \textsc{Quant}：高效量化数据集，得到 $Q(\x_1), Q(\x_2), \ldots, Q(\x_n)$。 
+    \item \textsc{DeQuant}：在给定量化数据后，可高效重建任意向量，即计算 $Q^{-1}\left(Q(\x_i)\right)$（$i\in[n]$）。
     % \item \textsc{score}: given the quantized dataset, for any query vector $\y \in \RR^d$ computes the inner product estimators $\langle \y, Q^{-1}\left( Q(\x_i) \right) \rangle $ for every $i \in [n]$ very efficiently.
 \end{itemize}
 
 
 \subsection{相关工作}
 
-\paragraph{Beginnings of VQ.}
-The vector quantization theory started by Shannon's seminal work~\cite{shannon1948mathematical, shannon1959coding} on achievable distortion-rate functions. 
-In 1963, Zador~\cite{zador1964development} made significant advances by employing high-resolution methods to derive the limiting operational distortion-rate function for fixed-rate quantization at high rates that closely matches Shannon's distortion-rate function. 
-However, Zador did not specifically consider implementable algorithms. 
-Gersho's influential paper~\cite{gersho1979asymptotically}, further advanced the vector quantization by popularizing high-resolution theory, simplifying Zador's results, introducing lattice vector quantization, and proposing a key conjecture that shaped the field.
-Despite these theoretical advancements, the practical applicability of vector quantization remained unclear in early years. 
-The most straightforward encoding method, brute-force nearest neighbor search, was computationally expensive, hindering the adoption of VQ in practice.
+\paragraph{VQ 的起源。}
+向量量化理论起源于 Shannon 关于可达失真率函数的奠基性工作~\cite{shannon1948mathematical, shannon1959coding}。
+1963 年，Zador~\cite{zador1964development} 通过高分辨率分析方法给出了固定速率量化在高码率下的极限操作失真率函数，该结果与 Shannon 失真率函数高度一致。
+不过，Zador 的工作并未聚焦可实现算法。
+随后 Gersho 的经典论文~\cite{gersho1979asymptotically} 进一步推动了该领域：其普及了高分辨率理论、简化了 Zador 结果、引入了格量化，并提出了影响深远的关键猜想。
+尽管理论取得了显著进展，向量量化在早期的工程可用性仍不明确。
+最直接的编码方式（暴力最近邻搜索）计算代价过高，限制了 VQ 的实际落地。
 
-\paragraph{Online vs Offline Quantization.}
-Online (data-oblivious) quantization methods apply instantly without needing data-specific tuning or calibrations~\cite{dettmers2022gpt3, ashkboos2024quarot, liu2024kivi, shah2024flashattention, han2025polarquant}. 
-In contrast, offline (data-dependent) methods require heavy preprocessing and learning to adapt the quantization map to the data, making them unsuitable for dynamic data scenarios~\cite{kim2023squeezellm}.
-For instance, methods such as those presented in~\cite{frantar2022gptq, lin2024awq, xiao2023smoothquant, chee2023quip} use second-order (Hessian) information to tune the quantization map which requires heavy preprocessing and even in some cases post processing as well.
+\paragraph{在线与离线量化。}
+在线（数据无关）量化方法可即时应用，不需要针对数据做额外调参或校准~\cite{dettmers2022gpt3, ashkboos2024quarot, liu2024kivi, shah2024flashattention, han2025polarquant}。
+与之相对，离线（数据相关）方法通常需要重度预处理和训练过程，以适配数据分布，因此不适合动态数据场景~\cite{kim2023squeezellm}。
+例如，~\cite{frantar2022gptq, lin2024awq, xiao2023smoothquant, chee2023quip} 中的方法会借助二阶（Hessian）信息调节量化映射，这通常需要较高预处理成本，部分方案还需要后处理。
 
 
-\paragraph{Online KV Cache Compression.}
+\paragraph{在线 KV Cache 压缩。}
 
-Several approaches have been proposed to compress the KV cache.
-These include architectural modifications~\cite{shazeer2019fast, ainslie2023gqa, dai2024deepseekmoe} which restructure the transformer to minimize the number of stored key-value pairs.
-Additionally, pruning or evicting redundant or less critical tokens has emerged as another approach~\cite{beltagy2020longformer, zhang2024h2o, liu2024scissorhands, xiao2023efficient, zandieh2024subgen, li2024snapkv, han2025balancekv}.
+已有多类方法用于压缩 KV cache。
+其中一类是结构改造~\cite{shazeer2019fast, ainslie2023gqa, dai2024deepseekmoe}，通过重构 Transformer 来减少需要存储的 key-value 对数量。
+另一类方法是剪枝或驱逐冗余/不关键 token~\cite{beltagy2020longformer, zhang2024h2o, liu2024scissorhands, xiao2023efficient, zandieh2024subgen, li2024snapkv, han2025balancekv}。
 
-A simple yet effective approach to reducing KV cache size is quantizing the KV cache. 
-Several quantization techniques have been developed specifically for this purpose~\cite{yue2024wkvquant, yang2024no, dong2024qaq, kang2024gear, zhang2024kv, liu2024kivi, hooper2024kvquant, kim2024lexico, han2025polarquant}.
-Recently, a new quantization called QJL~\cite{qjl} introduced an efficient, data-oblivious 1-bit quantization approach based on sketching techniques, which provides unbiased estimates for inner product queries.
-This method does not require tuning or adaptation to the input data and we make use of this technology in our quantizer optimized for inner product distortion.
+一种简单且有效的路径是直接量化 KV cache。
+围绕该目标已经有多种量化方案~\cite{yue2024wkvquant, yang2024no, dong2024qaq, kang2024gear, zhang2024kv, liu2024kivi, hooper2024kvquant, kim2024lexico, han2025polarquant}。
+近期提出的 QJL~\cite{qjl} 基于 sketch 技术给出高效、数据无关的 1-bit 量化，并可对内积查询提供无偏估计。
+该方法无需数据调参或自适应，本文在内积失真优化量化器中使用了这一技术。
 
-\paragraph{Product Quantization (PQ).}
-In Near Neighbor (NN) search problem with Euclidean datasets, the index size poses a significant memory bottleneck, often mitigated by quantization techniques, commonly referred to as Product Quantization (PQ) in the NN literature.
-Many of these algorithms rely on constructing a quantization codebook using variations of k-means during the indexing phase~\cite{jegou2010product, babenko2014additive, ge2013optimized, wang2017survey, guo2020accelerating}. 
-Therefore, these methods are ill-suited for online settings due to their requirement for extensive preprocessing.
+\paragraph{产品量化（PQ）。}
+在欧氏数据集上的近邻（NN）搜索任务中，索引体积往往构成显著内存瓶颈，通常通过量化技术缓解；在 NN 文献中这类方法常被称为产品量化（PQ）。
+许多此类算法在建索引阶段依赖 k-means 变体训练量化码本~\cite{jegou2010product, babenko2014additive, ge2013optimized, wang2017survey, guo2020accelerating}。
+因此，这些方法由于预处理代价高，通常不适合在线场景。
 
-Recently, a grid-based PQ method was introduced in \cite{gao2024practical}, eliminating the need for preprocessing. 
-This approach operates by projecting a uniform grid onto the unit sphere and conducting a search to identify the nearest projection to the data points. 
-While the paper's theoretical guarantees are suboptimal, likely due to loose analysis—as practical performance surpasses theoretical bounds—the grid projection and binary search algorithm is also computationally slow and particularly inefficient on accelerators like GPU because of their algorithm's inherent lack of vectorization, which prevents parallel processing.
+近期工作~\cite{gao2024practical} 提出了一种基于网格的 PQ 方法，无需预处理。
+该方法通过将均匀网格投影到单位球面，再搜索与数据点最近的投影点完成量化。
+尽管该方法实践表现优于其理论界（可能因为理论分析较松），但其网格投影与二分搜索过程计算较慢，且由于天然缺乏向量化能力，在 GPU 等加速器上并行效率较差。
 
 
 % \paragraph{Accelerator-friendly Quantization.}
@@ -258,59 +257,60 @@ While the paper's theoretical guarantees are suboptimal, likely due to loose ana
 \subsection{方法概览与贡献}
 
 \paragraph{MSE 优化的 \TurboQuant。}
-Our first VQ algorithm is designed to minimize MSE distortion deinfed in \cref{eq:mse}.
-To achieve this, we apply a random rotation to the input vectors, thereby inducing a Beta distribution on each coordinate, irrespective of the input vectors themselves.
-In high dimensions $d$, the distribution of each coordinate converges to a Gaussian distribution $\Ncal(1, 1/d)$ due to concentration of measure and the central limit theorem. 
-Furthermore, any two distinct coordinates become nearly uncorrelated and, more importantly, almost independent (a deeper result that goes beyond just correlation).
-This near-independence is a crucial aspect that simplifies our quantization design.
-It allows us to quantize each coordinate using optimal scalar quantization, disregarding interactions or correlations between different coordinates, while still achieving near-optimal distortion.
+我们的第一个 VQ 算法面向 \cref{eq:mse} 中定义的 MSE 失真最小化。
+为此，我们先对输入向量施加随机旋转，使每个坐标在与具体输入无关的意义下呈现 Beta 分布。
+在高维 $d$ 下，由于测度集中与中心极限定理，每个坐标分布会收敛到高斯分布 $\Ncal(1, 1/d)$。 
+此外，任意两个不同坐标不仅近似不相关，而且近似独立（这比仅不相关更强）。
+这种近似独立性是简化量化器设计的关键。
+它使我们能够忽略坐标间相互作用，直接对每个坐标应用最优标量量化，同时仍达到近最优失真。
 
-We find optimal scalar quantizers for random variables with Beta distributions by solving a continuous $1$-dimensional k-means problem using the Max-Lloyd algorithm. 
-We precompute and store these optimal codebooks for a range of practically useful bit-widths, to enable efficient subsequent invocations of our \TurboQuant algorithm.
+我们通过 Max-Lloyd 算法求解一维连续 k-means 问题，为 Beta 分布随机变量得到最优标量量化器。 
+针对工程上常用的一组 bit-width，我们离线预计算并存储最优码本，以便 \TurboQuant 在在线调用时直接使用。
 
-In \cref{thrm_mse} we prove that the $b$-bit MSE optimized \TurboQuant $Q_{\tt mse}: \RR^d \to \{ 0, 1 \}^{b \cdot d}$ achieves the following distortion for any worst-case vector $\x \in \RR^d$ with $\norm{\x}=1$:
+在 \cref{thrm_mse} 中我们证明：对于任意最坏情形向量 $\x \in \RR^d$（且 $\norm{\x}=1$），$b$-bit 的 MSE 优化 \TurboQuant（记为 $Q_{\tt mse}: \RR^d \to \{ 0, 1 \}^{b \cdot d}$）满足如下失真界：
 \begin{itemize}
-    \item $D_{\tt mse}(Q_{\tt mse}) := \E\left[\left\| \x - Q_{\tt mse}^{-1}\left( Q_{\tt mse}(\x) \right) \right\|_2^2 \right] \le \frac{\sqrt{3} \pi}{2} \cdot \frac{1}{4^{b}}$ for any $b \ge 0$.
-    \item For small bit-widths the above distortion upper bound can be further refined. 
-    Specifically, for $b = 1, 2, 3, 4$ we have $D_{\tt mse}(Q_{\tt mse}) \approx {\bf 0.36}, {\bf 0.117}, {\bf 0.03}, {\bf 0.009}$, respectively.
+    \item 对任意 $b \ge 0$，有
+    $D_{\tt mse}(Q_{\tt mse}) := \E\left[\left\| \x - Q_{\tt mse}^{-1}\left( Q_{\tt mse}(\x) \right) \right\|_2^2 \right] \le \frac{\sqrt{3} \pi}{2} \cdot \frac{1}{4^{b}}$。
+    \item 在低 bit-width 下可给出更精细的数值界。
+    具体地，当 $b = 1, 2, 3, 4$ 时，$D_{\tt mse}(Q_{\tt mse}) \approx {\bf 0.36}, {\bf 0.117}, {\bf 0.03}, {\bf 0.009}$。
 \end{itemize}
 
-Note that the unit norm assumption, $\norm{x}_2=1$, is standard and not restrictive. 
-For datasets that do not satisfy this assumption we can compute and store the $L2$ norms in floating-point precision and rescale the dequantized points using these stored norms.
+注意，单位范数假设 $\norm{x}_2=1$ 是标准设定且并不强。
+对不满足该假设的数据集，可以额外存储每个向量的 $L2$ 范数（浮点精度），并在反量化后据此做缩放恢复。
 
 \paragraph{内积优化的 \TurboQuant。}
-We show that the MSE optimized quantizers are biased for inner product estimation and thus a different VQ scheme is needed to get an unbiased inner product quantizer.
-Our solution is a two stage algorithm that first applies the abovementioned $Q_{\tt mse}$ with a bit-width one less than our target budget and then apply a QJL~\cite{qjl} on the residual error.
-This is proved to be unbiased and also has nearly optimal inner product error rate.
+我们证明：MSE 最优化量化器在内积估计上通常有偏，因此需要另一套 VQ 方案来实现无偏内积估计。
+我们的方案是两阶段算法：先以比目标预算少 1 bit 的方式应用上述 $Q_{\tt mse}$，再对残差施加 QJL~\cite{qjl}。
+该方案可证明是无偏的，同时具有近最优的内积误差率。
 
-In \cref{thrm_prod} we prove that the $b$-bit inner product optimized \TurboQuant $Q_{\tt prod}: \RR^d \to \{ 0, 1 \}^{b \cdot d}$ achieves the following distortion for any worst-case vectors $\x, \y \in \RR^d$ with $\norm{\x}=1$:
+在 \cref{thrm_prod} 中我们证明：对于任意最坏情形向量 $\x,\y\in\RR^d$（且 $\norm{\x}=1$），$b$-bit 的内积优化 \TurboQuant（记为 $Q_{\tt prod}: \RR^d \to \{ 0, 1 \}^{b \cdot d}$）具有如下性质：
 \begin{itemize}
     \item $\E\left[ \left< \y, Q_{\tt prod}^{-1}\left( Q_{\tt prod}(\x) \right) \right> \right] = \langle \y, \x \rangle$
     \item $D_{\tt prod}(Q_{\tt prod}) := \E\left[\left| \langle \y, \x \rangle - \langle \y, Q_{\tt prod}^{-1}\left( Q_{\tt prod}(\x) \right) \rangle \right|^2 \right] \le \frac{\sqrt{3} \pi^2 \cdot \norm{\y}_2^2}{d} \cdot \frac{1}{4^{b}}$ for any $b \ge 0$.
-    \item For small bit-widths the above distortion upper bound can be further refined. 
-    Specifically, for $b = 1, 2, 3, 4$ we have $D_{\tt prod}(Q_{\tt prod}) \approx \frac{\bf 1.57}{d}, \frac{\bf 0.56}{d}, \frac{\bf 0.18}{d}, \frac{\bf 0.047}{d}$, respectively.
+    \item 在低 bit-width 下可给出更精细的数值界。
+    具体地，当 $b = 1, 2, 3, 4$ 时，$D_{\tt prod}(Q_{\tt prod}) \approx \frac{\bf 1.57}{d}, \frac{\bf 0.56}{d}, \frac{\bf 0.18}{d}, \frac{\bf 0.047}{d}$。
 \end{itemize}
 
 
 \paragraph{下界。}
-In \cref{thrm_lower_bound}, we leverage Shannon's lower bound and Yao's minimax principle to prove that for any randomized quantization algorithm $Q: \RR^d \to \{ 0, 1 \}^{b \cdot d}$ with bit-width $b$, there exist hard input instances $\x, \y \in \RR^d$ with $\norm{\x} = 1$ such that the following lower bounds hold:
+在 \cref{thrm_lower_bound} 中，我们结合 Shannon 下界与 Yao 极小极大原理，证明：对任意 bit-width 为 $b$ 的随机量化算法 $Q: \RR^d \to \{ 0, 1 \}^{b \cdot d}$，都存在困难输入 $\x, \y \in \RR^d$（且 $\norm{\x}=1$）使得以下下界成立：
 \begin{itemize}
     \item $D_{\tt mse}(Q) := \E\left[\left\| \x - Q^{-1}\left( Q(\x) \right) \right\|_2^2 \right] \ge \frac{1}{4^{b}}$
     \item $D_{\tt prod}(Q) = \E\left[\left| \langle \y, \x \rangle - \langle \y, Q^{-1}\left( Q(\x) \right) \rangle \right|^2 \right] \ge \frac{\norm{\y}_2^2}{d} \cdot \frac{1}{4^{b}}$
 \end{itemize}
 
-As demonstrated by our lower bounds, \TurboQuant's MSE distortion is provably within a factor of at most $\frac{\sqrt{3} \pi}{2} \approx {\bf 2.7}$ of the information-theoretical lower bound.
-Notably, for smaller bit-widths, this factor significantly decreases. 
-For instance, at a bit-width of $b=1$ \TurboQuant achieves a distortion that is only a factor of approximately ${\bf 1.45}$ away from the optimal which is also confirmed by our experimental results, indicating its efficiency in low-bit-width scenarios.
+由这些下界可知，\TurboQuant 的 MSE 失真在可证明意义下最多仅比信息论下界大 $\frac{\sqrt{3}\pi}{2}\approx{\bf 2.7}$ 倍。
+值得注意的是，在更低 bit-width 下该常数因子会明显下降。 
+例如当 $b=1$ 时，\TurboQuant 的失真仅比最优值高约 ${\bf 1.45}$ 倍；实验结果也验证了其在低比特场景下的高效率。
 
 \paragraph{实验结果。}
-In \cref{sec:exp_valivation}, we empirically validate our theoretical distortion bounds, demonstrating that \TurboQuant's observed distortions closely align with our predictions across various real-world datasets, approaching the established lower bounds.
+在 \cref{sec:exp_valivation} 中，我们从实验上验证了本文的理论失真界，结果表明 \TurboQuant 在多类真实数据集上的观测失真与理论预测高度一致，并且接近所给下界。
 
-Furthermore, in \cref{sec:niah} and \cref{sec:exp_kv_end2end}, we showcase \TurboQuant's efficacy in online KV cache quantization. 
-Specifically, we achieve perfect long-context retrieval in needle-in-a-haystack tasks and maintain high performance on other long-context downstream tasks, all while compressing the KV cache by a factor exceeding $5 \times$.
+此外，在 \cref{sec:niah} 与 \cref{sec:exp_kv_end2end} 中，我们展示了 \TurboQuant 在在线 KV cache 量化中的效果。 
+具体而言，在 needle-in-a-haystack 任务上可实现几乎完美的长上下文检索，同时在其他长上下文下游任务中保持高性能，并将 KV cache 压缩到超过 $5\times$。
 
-Finally in \cref{sec:nn_exp} we apply \TurboQuant to various high-dimensional near neighbor search tasks.
-\TurboQuant consistently outperforms data-dependent product quantization (PQ), while reducing the indexing time to essentially zero.
+最后，在 \cref{sec:nn_exp} 中我们将 \TurboQuant 应用于多种高维近邻搜索任务。
+\TurboQuant 在召回上持续优于数据相关的 Product Quantization（PQ），同时将索引时间降至接近于零。
 
 
 \section{预备知识} \label{sec:prelim}
