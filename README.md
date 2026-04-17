@@ -1,6 +1,6 @@
-# MAC-FMA
+# arXiv-2504.19874v1
 
-This repository contains the MAC-FMA project files.
+This repository contains the `arXiv-2504.19874v1.tar.gz` package.
 
 ## Getting Started
 
