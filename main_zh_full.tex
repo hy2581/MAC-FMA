@@ -704,8 +704,8 @@ For example, \llama{} is represented by $\bfpn=16$ bits and has $d=128$. For $b=
 
 
 \section{实验}\label{sec:exp}
-All experiments are performed using a single NVIDIA A100 GPU. 
-The experimental section is divided into two parts: one to empirically validate the theoretical results, and another to evaluate the performance of our methods on downstream tasks, specifically KV cache quantization and nearest neighbor vector search.
+所有实验均在单张 NVIDIA A100 GPU 上完成。
+实验部分分为两部分：一部分用于经验性验证理论结果；另一部分用于评估方法在下游任务中的表现，重点包括 KV cache 量化与近邻向量搜索。
 
 \subsection{经验验证}
 \label{sec:exp_valivation}
@@ -722,15 +722,16 @@ The experimental section is divided into two parts: one to empirically validate 
         \centering
         \includegraphics[width=\textwidth]{experiments/analysis/compute_pairwise_inner_product_error_1536.pdf}
     \end{subfigure}
-    \caption{Error distribution of $\TurboQuant_\text{\tt prod}$ and $\TurboQuant_\text{\tt mse}$ for Inner Product Estimation.}
+    \caption{$\TurboQuant_\text{\tt prod}$ 与 $\TurboQuant_\text{\tt mse}$ 在内积估计任务上的误差分布。}
     \label{fig:inner_distortion}
 \end{center}
 \end{figure}
 
-In this section, we verify the theoretical results established in previous sections. We conduct our experiments using the DBpedia Entities dataset, which has been encoded into a 1536-dimensional space using OpenAI3 embeddings. 
-To perform our experiments, we randomly sample 100,000 data points from the dataset, denoted as training set, which serves as our primary dataset. Additionally, we extract 1,000 distinct entries, denoted as query set, to be used as query points.
+本节验证前文建立的理论结果。我们使用 DBpedia Entities 数据集开展实验，并采用 OpenAI3 embedding 将其编码到 1536 维空间。
+实验中，我们从数据集中随机采样 100,000 条数据作为训练集（主数据集）；另外抽取 1,000 条互不重复的数据作为查询集。
 
-We evaluate two quantization methods: \(\TurboQuant_\text{\tt prod}\) and \(\TurboQuant_\text{\tt mse}\). The method \(\TurboQuant_\text{\tt mse}\) is designed to be optimzed for estimating the mean squared error (MSE) between the quantized and original vectors. In contrast, \(\TurboQuant_\text{\tt prod}\) is unbiased for estimating the inner product between the quantized and original vectors.
+我们评估两种量化方法：\(\TurboQuant_\text{\tt prod}\) 与 \(\TurboQuant_\text{\tt mse}\)。
+其中 \(\TurboQuant_\text{\tt mse}\) 面向量化向量与原始向量之间 MSE 的优化；而 \(\TurboQuant_\text{\tt prod}\) 面向内积估计并保证无偏。
 
 \begin{figure}[h]
 \begin{center}
@@ -744,16 +745,18 @@ We evaluate two quantization methods: \(\TurboQuant_\text{\tt prod}\) and \(\Tur
         \centering
         \includegraphics[width=\textwidth]{experiments/analysis/ip_distortion_groups.pdf}
     \end{subfigure}
-    \caption{The variance of Inner-product error remains constant for $\TurboQuant_{\tt prod}$, while in $\TurboQuant_{\tt mse}$ increases with the average inner product. Bit-width is $b=2$.}
+    \caption{在 $b=2$ 时，$\TurboQuant_{\tt prod}$ 的内积误差方差基本保持常数；而 $\TurboQuant_{\tt mse}$ 的方差会随平均内积增大而上升。}
     \label{fig:inner_prod_2bit}
 \end{center}
 \end{figure}
 
-Both methods are applied to the task of inner product estimation by quantizing training set and analyzing the distortion in inner product calculations across different bit widths. As shown in \cref{fig:inner_distortion}, increasing the bit width reduces variance in both methods. However, when used for inner product estimation, \(\TurboQuant_\text{\tt mse}\) introduces bias. This bias diminishes as the bit width increases and eventually converges to zero.
+我们在训练集上执行量化，并将两种方法都用于内积估计任务，分析不同 bit-width 下的内积失真。
+如 \cref{fig:inner_distortion} 所示，随着 bit-width 增加，两种方法的方差都下降。
+但在内积估计场景下，\(\TurboQuant_\text{\tt mse}\) 会引入偏差；该偏差会随 bit-width 增大而减小，并最终趋近于 0。
 
-The experimental results, illustrated in \cref{fig:inner_distortion}, confirm that \(\TurboQuant_\text{\tt prod}\) remains unbiased for inner product estimation across all bit widths, while \(\TurboQuant_\text{\tt mse}\) gradually improves with increasing bit width.
+\cref{fig:inner_distortion} 的实验结果进一步确认：\(\TurboQuant_\text{\tt prod}\) 在所有 bit-width 下都保持内积无偏，而 \(\TurboQuant_\text{\tt mse}\) 会随着位宽增加逐步改善。
 
-As observed in \cref{fig:inner_prod_2bit}, when quantizing to 2 bits, the variance remains constant regardless of the inner product of the original vector in the $\TurboQuant\text{\tt prod}$ approach. However, the same plot indicates that the bias in the $\TurboQuant\text{\tt mse}$ approach is dependent on the average inner product. As the average inner product increases, the bias also increases.
+如 \cref{fig:inner_prod_2bit} 所示，在 2-bit 量化下，$\TurboQuant\text{\tt prod}$ 的方差与原向量内积大小基本无关；而 $\TurboQuant\text{\tt mse}$ 的偏差与平均内积相关，平均内积越大，偏差越大。
 
 \begin{figure}[h]
     \begin{center}
@@ -770,11 +773,12 @@ As observed in \cref{fig:inner_prod_2bit}, when quantizing to 2 bits, the varian
     \end{subfigure}
     \label{fig:lower_upper}
     \end{tabular}
-    \caption{Comparison of inner-product error and MSE against theoretical bounds across different bit ratios.}
+    \caption{不同 bit 比例下，内积误差与 MSE 和理论上/下界的对比。}
     \end{center}
 \end{figure}
 
-Along with the histograms, we also plot \cref{fig:lower_upper} the average inner product error and MSE between the original and quantized vectors across different bit ratios. These plots are drawn alongside the upper and lower bounds established in our theoretical analysis. Our observations confirm that the results align with the theoretical predictions. Specifically, for inner product estimation, the $\TurboQuant\text{\tt prod}$ approach performs better at lower bit ratios. However, as the bit count increases, $\TurboQuant\text{\tt mse}$ reduces bias and ultimately achieves superior performance in inner product estimation.
+除直方图外，我们还在 \cref{fig:lower_upper} 中给出了不同 bit 比例下原向量与量化向量之间的平均内积误差与 MSE，并与理论分析得到的上界和下界同图对比。
+结果显示实验与理论预测一致：在较低 bit 比例时，$\TurboQuant\text{\tt prod}$ 在内积估计上更优；而随着 bit 数增加，$\TurboQuant\text{\tt mse}$ 的偏差持续下降，并最终在内积估计上取得更好表现。
 
 
 \subsection{大海捞针（Needle-In-A-Haystack）} \label{sec:niah}
@@ -813,18 +817,18 @@ Along with the histograms, we also plot \cref{fig:lower_upper} the average inner
             \includegraphics[width=\textwidth]{experiments/needle/needle_rqjl.pdf}
         \end{minipage} \\
     \end{tabular}
-    \caption{Evaluation of \texttt{Llama-3.1-8B-Instruct} on the ``Needle-In-A-Haystack" test, where a model must retrieve a hidden sentence from long-context sequences. While some methods struggle with recall, \TurboQuant, despite being more than \textbf{$4 \times$} quantized, achieves the same exact performance as the uncompressed baseline.}
+    \caption{\texttt{Llama-3.1-8B-Instruct} 在“Needle-In-A-Haystack”测试上的表现。该测试要求模型从长上下文中找回隐藏句子。尽管部分方法召回明显下降，\TurboQuant 在超过 \textbf{$4 \times$} 量化压缩下仍与未压缩基线达到同等性能。}
     \label{fig:needle_comparison}
 \end{figure}
 
 % Next we evaluate our method for the ``Needle-In-A-Haystack" test~\cite{niah}. It asks the model to retrieve the information in a given sentence where the sentence (the ``needle'') is placed in an arbitrary location of a long document (the ``haystack''). We follow the same setting from~\citet{fu2024data} and use the \llama{} to run the test. 
-The ``Needle-In-A-Haystack Test"" \cite{niah} is a benchmark designed to evaluate a model’s ability to retrieve specific information embedded within a long document. The test involves placing a unique sentence (the "needle") at an arbitrary location within a much larger text (the "haystack") and assessing whether the model can successfully extract it.
+“Needle-In-A-Haystack Test”~\cite{niah} 用于评估模型在长文档中检索特定信息的能力。测试做法是在大段文本（haystack）中随机位置插入一条唯一句子（needle），并检测模型能否准确找回。
 
-Following the experimental setup of \citet{fu2024data}, we conduct evaluations using the \llama{} model. To analyze performance across different input sequence lengths, we vary the document size from \emph{4k to 104k tokens}. The primary metric used for evaluation is the \emph{recall score}, which measures how accurately the model retrieves the hidden sentence.
+按照 \citet{fu2024data} 的实验设置，我们使用 \llama{} 进行评测。为分析不同输入长度下的表现，文档长度从 \emph{4k} 到 \emph{104k tokens} 变化。主要评价指标为 \emph{recall score}，用于衡量模型找回隐藏句子的准确程度。
 
-For comparison, we benchmark our approach against several state-of-the-art memory-efficient methods, including PolarQuant~\cite{han2025polarquant}, SnapKV~\cite{li2024snapkv}, PyramidKV~\cite{cai2024pyramidkv}, and KIVI~\cite{liu2024kivi}. Each method is tested under a memory compression ratio of 0.25, meaning that only 25\% of the full KV cache is utilized.
+对比方法包括多种 SOTA 内存高效方案：PolarQuant~\cite{han2025polarquant}、SnapKV~\cite{li2024snapkv}、PyramidKV~\cite{cai2024pyramidkv} 与 KIVI~\cite{liu2024kivi}。所有方法都在 0.25 的内存压缩率下测试，即仅使用完整 KV cache 的 25\%。
 
-The results, illustrated in \cref{fig:needle_comparison}, reveal that quantization methods with theoretical guarantees, such as PolarQuant and \TurboQuant, outperform token-level compression techniques like SnapKV and PyramidKV, as well as scalar quantization approaches like KIVI, which lack formal theoretical guarantees. Notably, \TurboQuant achieves identical performance to the full-precision model, even at $4 \times$ compression, making it a robust solution for long-context processing.
+\cref{fig:needle_comparison} 表明：具有理论保证的量化方法（如 PolarQuant 与 \TurboQuant）优于 token 级压缩方法（SnapKV、PyramidKV）以及缺乏严格理论保证的标量量化方法（如 KIVI）。特别地，\TurboQuant 在 $4\times$ 压缩下仍与全精度模型表现一致，体现出其在长上下文处理中的稳健性。
 
 
 % We vary the input sequence lengths from 4K to 104K. 
@@ -836,14 +840,14 @@ The results, illustrated in \cref{fig:needle_comparison}, reveal that quantizati
 \subsection{LongBench 端到端生成}
 \label{sec:exp_kv_end2end}
 
-We experiment with various KV cache compression algorithms on the LongBench dataset~\cite{bai2023longbench}, which encompasses a broad range of long-text scenarios, including single- and multi-document question-answering, summarization, few-shot learning, synthetic tasks, and code completion. To ensure a balanced evaluation across different context lengths, we employ \textbf{LongBench-E}, a subset designed with a more uniform length distribution. This enables a fair assessment of each model’s performance across varying context sizes, making it a more reliable benchmark for evaluating compression techniques.
+我们在 LongBench 数据集~\cite{bai2023longbench} 上评测多种 KV cache 压缩算法。该数据集覆盖单文档/多文档问答、摘要、少样本学习、合成任务与代码补全等多类长文本场景。为在不同上下文长度上获得更均衡评估，我们使用长度分布更均匀的子集 \textbf{LongBench-E}，从而更公平地比较各方法在不同上下文规模下的性能。
 
-We compare \TurboQuant against the leading baseline methods introduced in \cref{sec:niah}, using both \llama{} and \mistral{}. Unlike existing approaches such as \textbf{KIVI} and \textbf{PolarQuant}, which leave generated tokens unquantized, our method applies quantization even during the streaming generation process.
+我们在 \llama{} 与 \mistral{} 两个模型上，将 \TurboQuant 与 \cref{sec:niah} 中的主流基线进行比较。不同于 KIVI、PolarQuant 等通常不量化生成阶段 token 的做法，我们的方法在流式生成过程中也执行量化。
 
-As shown in \cref{tab:performance_comparison}, our approach outperforms other methods for both \llama{} and \mistral{}, achieving significantly higher average scores. We evaluate our method using \textbf{2.5-bit} and \textbf{3.5-bit} quantization during text generation. 
-These non-integer bit precisions result from our strategy of splitting channels into outlier and non-outlier sets, and applying two independent instances of \TurboQuant to each, allocating higher bit precision to outliers. This outlier treatment strategy is consistent with prior work \cite{zandieh2024qjl, su2025rotatekvaccuraterobust2bit} . 
-For example, in our 2.5-bit setup, 32 outlier channels are quantized at 3 bits, while the remaining 96 channels use 2 bits, leading to an effective bit precision of \( (32 \times 3 + 96 \times 2) / 128 = 2.5 \). For 3.5-bit quantization, a different ratio of outliers and regular channels leads to a higher effective bit precision. 
-Despite using fewer bits than competing techniques, \TurboQuant maintains performance comparable to unquantized models. Remarkably, we achieve this while compressing quantized vectors by at least a factor of $4.5 \times$.
+如 \cref{tab:performance_comparison} 所示，在 \llama{} 与 \mistral{} 上，我们的方法均优于其他方案并取得更高平均分。我们在生成过程中评测了 \textbf{2.5-bit} 与 \textbf{3.5-bit} 两种量化配置。
+这两种非整数比特精度来自“离群通道/普通通道”分组策略：对两组分别应用独立的 \TurboQuant，并给离群通道分配更高位宽。该策略与已有工作~\cite{zandieh2024qjl, su2025rotatekvaccuraterobust2bit} 一致。
+例如在 2.5-bit 配置下，32 个离群通道使用 3 bit，剩余 96 个通道使用 2 bit，有效位宽为 \( (32 \times 3 + 96 \times 2) / 128 = 2.5 \)。3.5-bit 情况采用不同的离群比例，从而获得更高有效位宽。
+尽管使用位宽低于若干对比方法，\TurboQuant 仍能保持接近未量化模型的性能，并实现至少 $4.5\times$ 的向量压缩。
 
 % We run various KV cache compression algorithms for LongBench-E datasets~\cite{bai2023longbench}, which encompasses diverse long-text scenarios including single/multi-document question-answering, summarization , few-shot learning, synthetic tasks, and code completion (Code).
 % We evaluate \TurboQuant against the top baseline methods using in \cref{sec:niah} on \llama{} and \mistral{}. Despite the fact that for both method KIVI and PolarQuant we didn't quantize the generated tokens, for our method we quantized even generated tokens in the stream. 
@@ -886,16 +890,16 @@ Despite using fewer bits than competing techniques, \TurboQuant maintains perfor
         \TurboQuant (ours) & $2.5$ & $48.38$ & $49.22$ & $24.91$    & $66.69$   & $53.17$  & $46.83$ & $49.62$ \\ 
     \end{tabular}
 }
-\caption{LongBench-V1~\cite{bai2023longbench} results of various KV cache compression methods on \llama{}.}
+\caption{LongBench-V1~\cite{bai2023longbench} 上不同 KV cache 压缩方法在 \llama{} 上的结果。}
 \label{tab:performance_comparison}
 \end{table}
 
 \subsection{近邻搜索实验}
 \label{sec:nn_exp}
-In this section, we establish the strength of our proposed method, even in the context of near-neighbor search. We conduct our experiments using the DBpedia \cite{thakur2021beir} Entities dataset, which has been encoded into 1536-dimensional\footnote{https://huggingface.co/datasets/Qdrant/dbpedia-entities-openai3-text-embedding-3-large-1536-1M} and 3072-dimensional \footnote{https://huggingface.co/datasets/Qdrant/dbpedia-entities-openai3-text-embedding-3-large-3072-1M} spaces using OpenAI3 embeddings. Additionally, we evaluate performance on a lower-dimensional dataset, utilizing the standard GloVe \cite{pennington2014glove} embeddings.
-To construct our experimental setup, we randomly sample 100,000 data points from the dataset, denoted as training set, which serves as our primary training and evaluation set. Furthermore, we extract 1,000 distinct entries, denoted as query set, to be used as query points for datasets that do not explicitly provide a query set. For the GloVe dataset, we use a pre-existing query set consisting of 10,000 points.
+本节展示我们的方法在近邻搜索场景中的性能优势。实验使用 DBpedia~\cite{thakur2021beir} Entities 数据集，并基于 OpenAI3 embedding 构建 1536 维\footnote{https://huggingface.co/datasets/Qdrant/dbpedia-entities-openai3-text-embedding-3-large-1536-1M}与 3072 维\footnote{https://huggingface.co/datasets/Qdrant/dbpedia-entities-openai3-text-embedding-3-large-3072-1M}向量空间。此外，我们还在较低维场景下使用标准 GloVe~\cite{pennington2014glove} embedding 进行评估。
+实验设置上，我们随机采样 100,000 个数据点作为训练集（同时用于主要评测）。对于未显式提供查询集的数据集，额外抽取 1,000 个互异样本作为查询点；对 GloVe 数据集则采用其已有的 10,000 条查询集。
 
-We compare our method, \TurboQuant, against two baseline quantization approaches: Product Quantization (PQ) and RabitQ \cite{gao2024practical}. To ensure a fair comparison, we quantize the dataset training set using all three methods and evaluate their performance based on recall ratio at top-k, denoted as 1@k. Specifically, this metric assesses how often the true top inner product result is captured within the top-k approximated results returned by each algorithm.
+我们将 \TurboQuant 与两种基线量化方法比较：Product Quantization（PQ）和 RabitQ~\cite{gao2024practical}。为保证公平性，三种方法都在同一训练集上完成量化，并以 top-k 召回率（1@k）作为评价指标，即衡量真实 top-1 内积结果被包含在近似 top-k 结果中的频率。
 
 \begin{table}[ht]
     \centering
@@ -908,22 +912,23 @@ We compare our method, \TurboQuant, against two baseline quantization approaches
         \TurboQuant & 0.0007 & 0.0013 & 0.0021 \\
         \bottomrule
     \end{tabular}
-    \caption{Quantization time (in seconds) for different approaches across various dimensions using 4-bit quantization.}
+    \caption{在 4-bit 量化设置下，不同方法在不同维度上的量化时间（秒）。}
     \label{tab:quantizing_time}
 \end{table}
 
-\textbf{Product Quantization (PQ)} relies on the k-means algorithm to construct codebooks, which require separate storage. 
-As the number of bits increases, the size of the codebook grows exponentially, leading to additional storage overhead. In our experiments, we carefully tuned the parameters to match the bit allocation of other methods. 
-The most efficient implementation, designed for rapid querying, employs AVX2 In-Register Lookup Tables (LUTs). 
-Specifically, it uses LUT16 with (l = 16) codewords. However, we observed substantial quality degradation at this configuration. 
-To achieve a balance between speed and accuracy, we opted for a version of PQ that uses LUT256, which contains 256 codewords. 
-For 2-bit quantization, it groups 4 coordinates per lookup, while for 4-bit quantization, it groups 2 coordinates per lookup. 
-Notably, since we use the same dataset for both training and evaluation, PQ benefits from an inherent advantage in this setup.
+\textbf{Product Quantization (PQ)} 依赖 k-means 构造码本，并且需要额外存储码本。
+随着 bit 数增加，码本规模呈指数增长，从而带来额外存储开销。在实验中，我们仔细调参以匹配各方法的比特分配。
+面向高速查询的高效实现通常使用 AVX2 寄存器内查表（LUT）。
+具体来说，LUT16（$l=16$）是速度较快的配置，但我们观察到该配置会带来明显精度下降。
+为了兼顾速度与精度，我们采用了 LUT256（256 个码字）的 PQ 版本。
+在 2-bit 量化下每次查表覆盖 4 个坐标，在 4-bit 量化下每次查表覆盖 2 个坐标。
+此外，由于我们在同一数据集上同时训练和评测，PQ 在该设定下天然占有一定优势。
 
-\textbf{RabitQ.} 
-Unlike PQ, RabitQ lacks a fully vectorized implementation, making it impossible to leverage GPU acceleration. As a result, it runs significantly slower on CPU. Additionally, the method incurs extra computational overheads that we do not explicitly account for in the bit ratio comparisons. While RabitQ claims a certain bit ratio, in practice, it utilizes more bits than reported due to these inefficiencies.
+\textbf{RabitQ。}
+与 PQ 不同，RabitQ 缺乏完整向量化实现，无法有效利用 GPU 加速，因此在 CPU 上速度明显更慢。
+此外，该方法还有一些额外计算开销，这些开销未被显式计入 bit ratio 比较。也就是说，RabitQ 声称的位宽比在实际系统中往往会因实现开销而高于报告值。
 
-Despite the advantages granted to the baseline methods, \TurboQuant consistently outperforms both Product Quantization and RabitQ in terms of recall ratio across all experiments. This demonstrates the robustness and efficiency of our approach, making it a compelling alternative for high-dimensional quantization-based search tasks.
+尽管基线方法在设定上有一定优势，\TurboQuant 在全部实验中的召回率仍持续优于 PQ 与 RabitQ。这表明我们的方法在高维量化检索任务中兼具稳健性与效率，是具有竞争力的替代方案。
 
 \begin{figure}[th]
     \centering
@@ -947,7 +952,7 @@ Despite the advantages granted to the baseline methods, \TurboQuant consistently
             \includegraphics[width=\textwidth]{experiments/nearest_neighbor/recall-3072.pdf}
     \end{subfigure}
     \end{tabular}
-    \caption{Recall comparison on different datasets with different embedding dimensions.}
+    \caption{不同数据集与不同 embedding 维度下的召回率对比。}
 \end{figure}
 
 
