@@ -762,7 +762,7 @@ For example, \llama{} is represented by $\bfpn=16$ bits and has $d=128$. For $b=
     \begin{center}
     \begin{tabular}{cc}
         \begin{subfigure}{0.4\textwidth}
-            \caption{\textbf{inner-prod error}}
+            \caption{\textbf{内积误差}}
             \centering
             \includegraphics[width=\textwidth]{experiments/analysis/validation_upper_lower_bounds_innerproduct_unbiased.pdf}
         \end{subfigure}&
@@ -773,12 +773,12 @@ For example, \llama{} is represented by $\bfpn=16$ bits and has $d=128$. For $b=
     \end{subfigure}
     \label{fig:lower_upper}
     \end{tabular}
-    \caption{不同 bit 比例下，内积误差与 MSE 和理论上/下界的对比。}
+    \caption{不同位宽比例下，内积误差与 MSE 相对理论上界/下界的对比。}
     \end{center}
 \end{figure}
 
 除直方图外，我们还在 \cref{fig:lower_upper} 中给出了不同 bit 比例下原向量与量化向量之间的平均内积误差与 MSE，并与理论分析得到的上界和下界同图对比。
-结果显示实验与理论预测一致：在较低 bit 比例时，$\TurboQuant\text{\tt prod}$ 在内积估计上更优；而随着 bit 数增加，$\TurboQuant\text{\tt mse}$ 的偏差持续下降，并最终在内积估计上取得更好表现。
+结果显示实验与理论预测一致：在较低位宽比例时，$\TurboQuant\text{\tt prod}$ 在内积估计上更优；而随着位数增加，$\TurboQuant\text{\tt mse}$ 的偏差持续下降，并最终在内积估计上取得更好表现。
 
 
 \subsection{大海捞针（Needle-In-A-Haystack）} \label{sec:niah}
@@ -941,18 +941,18 @@ For example, \llama{} is represented by $\bfpn=16$ bits and has $d=128$. For $b=
         \end{subfigure}&
         \begin{subfigure}{0.3\textwidth}
         \centering
-        \caption{OpenAI3 - d=1536}
+            \caption{OpenAI3（$d=1536$）}
             \centering
             \includegraphics[width=\textwidth]{experiments/nearest_neighbor/recall-1536.pdf}
         \end{subfigure}&
         \begin{subfigure}{0.3\textwidth}
         \centering
-        \caption{OpenAI3 - d=3072}
+        \caption{OpenAI3（$d=3072$）}
             \centering
             \includegraphics[width=\textwidth]{experiments/nearest_neighbor/recall-3072.pdf}
     \end{subfigure}
     \end{tabular}
-    \caption{不同数据集与不同 embedding 维度下的召回率对比。}
+    \caption{不同数据集与不同嵌入维度下的召回率对比。}
 \end{figure}
 
 
